@@ -1,0 +1,91 @@
+substitutions:
+  name: wanjiban-esp8266-bemfa
+  friendly_name: WANJIBAN-ESP8266-BEMFA
+  wifi_ssid: "your_wifi_ssid"
+  wifi_password: "your_wifi_password"
+  api_key: "your_api_key" # 新建一个空项目就可以自动生成，或者使用其它项目现成的
+  mqtt_broker: "bemfa.com" # 服务器
+  mqtt_client_id: "your_client_id"  # 对应巴法云的私钥
+  mqtt_port: 9501 # 端口
+  mqtt_topic: "your_MQTT设备云ID"  # 比如：keting006，不需要加‘/’
+  relay_pin: GPIO4 # 继电器
+  led_pin: GPIO2 # LED
+  button_pin: GPIO12 #按钮
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+esp8266:
+  board: esp12e
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "${api_key}"
+
+# Web server configuration
+web_server:
+  port: 80
+
+# OTA updates
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: "${wifi_ssid}"
+  password: "${wifi_password}"
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${friendly_name} Rescue"
+
+# Enable logging
+logger:
+
+# Enable Improv Serial for Wi-Fi provisioning
+improv_serial:
+
+# Enable captive portal for Wi-Fi provisioning
+captive_portal:
+
+# MQTT configuration
+mqtt:
+  broker: "${mqtt_broker}"
+  client_id: "${mqtt_client_id}"
+  port: ${mqtt_port}
+  on_message:
+    - topic: "${mqtt_topic}"
+      then:
+        - lambda: |-
+            if (strcmp(x.c_str(), "on") == 0) {
+              id(relay_1).turn_on();
+            } else {
+              id(relay_1).turn_off();
+            }
+            ESP_LOGD("main", "The current message is: %s", x.c_str());
+
+# Relay configuration
+switch:
+  - platform: gpio
+    id: relay_1
+    pin: ${relay_pin}
+    name: "RELAY"
+    inverted: false
+
+  - platform: gpio
+    id: led
+    pin: ${led_pin}
+    name: "LED"
+    inverted: false
+
+# Button configuration
+binary_sensor:
+  - platform: gpio
+    id: button_1
+    pin:
+      number: ${button_pin}
+      mode: INPUT_PULLUP
+      inverted: false
+    on_press:
+      - switch.toggle: relay_1
+    name: "BT"
